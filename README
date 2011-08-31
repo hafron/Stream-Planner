@@ -1,0 +1,16 @@
+Installation
+1. Install a web server like apache, LightHTTPd, nigix or any other whith
+PHP(5.2 or newer).
+2. Enable SQLite support in your PHP installation.
+3. Copy Stream-Planner directory to /var/www, ~/public_html on any other
+directory where you are storing your web files.
+4. Create /usr/local/stream_planner/ directory and make in readable and
+writeable for your www server or modify config.php file and change
+database storing directory.
+5. Edit config.php file and choose language of application: pl_PL or en_US.
+5. Type in your browser http://localhost/directory/to/the/stream/planner.
+6. Organize your time.
+
+
+
+
