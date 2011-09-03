@@ -1,6 +1,6 @@
 Installation
-1. Install a web server like apache, LightHTTPd, nigix or any other whith
-PHP(5.2 or newer).
+1. Install a web server like apache, LightHTTPd, ngix or any other whith
+PHP(5.3 or newer).
 2. Enable SQLite support in your PHP installation.
 3. Copy Stream-Planner directory to /var/www, ~/public_html on any other
 directory where you are storing your web files.

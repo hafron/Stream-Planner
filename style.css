@@ -5,3 +5,18 @@
 body {
   font: 10pt Verdana, sans-serif;
 }
+.stream {
+  display:table-cell;
+  border-collapse:collapse;
+  border:1px solid #000;
+  margin:3px;
+}
+.stream th td {
+  border:1px solid #000;
+}
+.stream caption {
+  border:1px solid #000;
+}
+.stream caption form {
+  display:inline;
+}
