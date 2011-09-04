@@ -5,6 +5,10 @@
 body {
   font: 10pt Verdana, sans-serif;
 }
+input[type=time] {
+  width:50px;
+}
+
 .stream {
   display:table-cell;
   border-collapse:collapse;
@@ -19,4 +23,7 @@ body {
 }
 .stream caption form {
   display:inline;
+}
+.tasks {
+  border:1px solid #f00;
 }

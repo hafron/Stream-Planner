@@ -43,3 +43,39 @@ function formated_to_unix($date)
 	  }
 	  return date_format($new_date, 'U');
 }
+function valid_time($time, &$sp_time=array()) {
+	if(preg_match('/^([0-9]{1,2}):([0-9]{1,2})$/', $time, $time_splitted)) {
+		$h = (int)$time_splitted[1];
+		$m = (int)$time_splitted[2];
+
+	    if($h < 0 || $m < 0) {
+			return false;
+	    } elseif($h > 24) {
+			return false;
+		} elseif($h == 24)
+		{
+			if($m != 0)
+			  return false;
+		} else
+		{
+		  	if($m > 60)
+		  	  return false;
+		}
+	$sp_time = array($h, $m);
+	return true;
+	}
+}
+function format_time($time) {
+	$time = (int)$time;
+	$h = floor($time/3600);
+	$m = floor(($time-($h*3600))/60);
+	return (strlen((string)$h) == 1 ? '0'.$h : $h).':'.(strlen((string)$m) == 1 ? '0'.$m : $m);
+
+}
+/**
+ * Displaying error scren.
+*/
+function error($e) {
+	include 'templates/error.php';
+	exit;
+}

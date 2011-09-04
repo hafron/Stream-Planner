@@ -1,52 +1,8 @@
 <?php
-include('config.php');
-include('functions.inc.php');
-
-$_POST = htmlspecialchars_array($_POST);
-$_GET = htmlspecialchars_array($_GET);
-$_SERVER = htmlspecialchars_array($_SERVER);
-$_ERRORS = array();
-if(!isset($_GET['action'])) $_GET['action'] = '';
+try {//default Exceptions behaviour
 
 
-if(false === file_exists(DATABASE_FILE))
-{
-	$db = new PDO('sqlite:'.DATABASE_FILE);
-    $db->beginTransaction();
-	$db->exec('
-	CREATE TABLE streams(
-	  id INTEGER PRIMARY KEY,
-	  name TEXT,
-	  priority INTEGER
-	)');
-	$db->exec('
-	CREATE TABLE targets(
-	  id INTEGER PRIMARY KEY,
-	  stream INTEGER,
-	  name INTEGER,
-	  end_date INTEGER,
-	  result INTEGER
-	)');
-	$db->exec('
-	CREATE TABLE tasks(
-	  id INTEGER PRIMARY KEY,
-	  target INTEGER,
-	  name INTEGER,
-	  time INTEGER,
-	  finished INTEGER
-	)');
-	$db->exec('
-	CREATE TABLE times(
-	  id INTEGER PRIMARY KEY,
-	  name TEXT
-	)');
-	$db->exec('INSERT INTO times VALUES (1, \'autobusowy\')');
-	$db->exec('INSERT INTO times VALUES (2, \'szkolny\')');
-	$db->exec('INSERT INTO times VALUES (3, \'domowy\')');
-	$db->exec('INSERT INTO times VALUES (4, \'domowy_od_rana\')');
-	$db->commit();
-}
-
+include 'bootstrap.php';
 
 switch($_GET['action']) {
 	case 'add_stream':
@@ -55,16 +11,28 @@ switch($_GET['action']) {
 		  $_ERRORS['name'] = __('Musisz podać nazwę strumienia.');
 		  break;
 	  }
-	  $db = new PDO('sqlite:'.DATABASE_FILE);
-      $db->exec('INSERT INTO streams VALUES (NULL, \''.$_POST['name'].'\', (SELECT IFNULL(MAX(priority), 0)+1 FROM streams))');
+      DB::instance()->exec('INSERT INTO streams VALUES (NULL, "'.$_POST['name'].'", (SELECT IFNULL(MAX(priority), 0)+1 FROM streams))');
 	break;
 	case 'remove_stream':
-	  $db = new PDO('sqlite:'.DATABASE_FILE);
-      $db->exec('DELETE FROM streams WHERE id = \''.$_GET['id'].'\'');
+	 try {
+	    DB::instance()->beginTransaction();
+        DB::instance()->exec('DELETE FROM streams WHERE id = "'.$_GET['id'].'"');
+        $targets = DB::instance()->query('SELECT id FROM targets WHERE stream = "'.$_GET['id'].'"');
+        foreach($targets->fetchAll() as $target)
+        {
+			DB::instance()->exec('DELETE FROM tasks WHERE target = "'.$target['id'].'"');
+		}
+		DB::instance()->exec('DELETE FROM targets WHERE stream = "'.$_GET['id'].'"');
+        DB::instance()->commit();
+	  } catch(Exception $e) {
+		DB::instance()->rollBack();
+		error($e);
+	  }
+	  
 	break;
-	case 'stream_up':
-	  $db = new PDO('sqlite:'.DATABASE_FILE);
-	  $stream = $db->query('SELECT id, priority FROM streams WHERE priority <= (SELECT priority FROM streams WHERE id = \''.$_GET['id'].'\') ORDER BY priority DESC');
+	case 'stream_left':
+	  
+	  $stream = DB::instance()->query('SELECT id, priority FROM streams WHERE priority <= (SELECT priority FROM streams WHERE id = "'.$_GET['id'].'") ORDER BY priority DESC');
 	  $streams = $stream->fetchAll();
 	  $this_stream = $streams[0];
 	  
@@ -72,14 +40,14 @@ switch($_GET['action']) {
 	  $stream_upper = $streams[1];
 	  $down_record_priority = $this_stream['priority'];
 	  
-	  $db->beginTransaction();
-	  $db->exec('UPDATE streams SET priority = \''.$stream_upper['priority'].'\' WHERE id = \''.$this_stream['id'].'\'');
-	  $db->exec('UPDATE streams SET priority = \''.$down_record_priority.'\' WHERE id = \''.$stream_upper['id'].'\'');
-	  $db->commit();
+	  DB::instance()->beginTransaction();
+	  DB::instance()->exec('UPDATE streams SET priority = "'.$stream_upper['priority'].'" WHERE id = "'.$this_stream['id'].'"');
+	  DB::instance()->exec('UPDATE streams SET priority = "'.$down_record_priority.'" WHERE id = "'.$stream_upper['id'].'"');
+	  DB::instance()->commit();
 	break;
-	case 'stream_down':
-	  $db = new PDO('sqlite:'.DATABASE_FILE);
-	  $stream = $db->query('SELECT id, priority FROM streams WHERE priority >= (SELECT priority FROM streams WHERE id = \''.$_GET['id'].'\') ORDER BY priority');
+	case 'stream_right':
+	  
+	  $stream = DB::instance()->query('SELECT id, priority FROM streams WHERE priority >= (SELECT priority FROM streams WHERE id = "'.$_GET['id'].'") ORDER BY priority');
 	  $streams = $stream->fetchAll();
 	  $this_stream = $streams[0];
 	  
@@ -87,10 +55,10 @@ switch($_GET['action']) {
 	  $stream_lower = $streams[1];
 	  $up_record_priority = $this_stream['priority'];
 	  
-	  $db->beginTransaction();
-	  $db->exec('UPDATE streams SET priority = \''.$stream_lower['priority'].'\' WHERE id = \''.$this_stream['id'].'\'');
-	  $db->exec('UPDATE streams SET priority = \''.$up_record_priority.'\' WHERE id = \''.$stream_lower['id'].'\'');
-	  $db->commit();
+	  DB::instance()->beginTransaction();
+	  DB::instance()->exec('UPDATE streams SET priority = "'.$stream_lower['priority'].'" WHERE id = "'.$this_stream['id'].'"');
+	  DB::instance()->exec('UPDATE streams SET priority = "'.$up_record_priority.'" WHERE id = "'.$stream_lower['id'].'"');
+	  DB::instance()->commit();
 	break;
 	case 'correct_stream':
 	   if('' === $_POST['name'])
@@ -98,8 +66,8 @@ switch($_GET['action']) {
 	     $_ERRORS['name'] = __('Musisz podać nazwę strumienia.');
 	     break;
 	   }
-	   $db = new PDO('sqlite:'.DATABASE_FILE);
-	   $db->exec('UPDATE streams SET name = \''.$_POST['name'].'\' WHERE id = \''.$_GET['id'].'\'');
+	   
+	   DB::instance()->exec('UPDATE streams SET name = "'.$_POST['name'].'" WHERE id = "'.$_GET['id'].'"');
 	break;
 	case 'add_target':
 	  if('' === $_POST['name'])
@@ -118,19 +86,22 @@ switch($_GET['action']) {
 	    }
 	  }
 
-	 /* if('' !== $_POST['result'] && time() < $date)
-	  {
-		  $_ERRORS['result'] = __('Nie możesz wpisywać rezultatów danego celu jeżeli nie zostałą przekroczona data zakończenia.');
-	  }*/
 	  if(count($_ERRORS) == 0) {
-	    $db = new PDO('sqlite:'.DATABASE_FILE);
-        $db->exec('INSERT INTO targets VALUES (NULL, \''.$_GET['stream'].'\', \''.$_POST['name'].'\', \''.$date.'\', NULL)');
+	    
+        DB::instance()->exec('INSERT INTO targets VALUES (NULL, "'.$_GET['stream'].'", "'.$_POST['name'].'", "'.$date.'", NULL)');
         $_POST = array();
 	  }
 	 break;
 	 case 'remove_target':
-	  $db = new PDO('sqlite:'.DATABASE_FILE);
-      $db->exec('DELETE FROM targets WHERE id = \''.$_GET['id'].'\'');
+	 try {
+	    DB::instance()->beginTransaction();
+        DB::instance()->exec('DELETE FROM targets WHERE id = "'.$_GET['id'].'"');
+        DB::instance()->exec('DELETE FROM tasks WHERE target = "'.$_GET['id'].'"');
+        DB::instance()->commit();
+	  } catch(Exception $e) {
+		DB::instance()->rollBack();
+		error($e);
+	  }
 	 break;
 	 case 'correct_target':
 		if('' === $_POST['name'])
@@ -148,18 +119,71 @@ switch($_GET['action']) {
 				$_ERRORS['end_date'] = __('Podaj datę w formacie: '.DATE_FORMAT.'.');
 			}
 		}
-
-		if('' !== $_POST['result'] && time() < $date)
+		if('' !== $_POST['result'] && !is_numeric($_POST['result']))
+		{
+			$_ERRORS['result'] = __('Wynik musi byś liczbą całkowitą określającą wynik wykonanego zadania w procentach.');
+		} elseif('' !== $_POST['result'] && time() < $date)
 		{
 		  $_ERRORS['result'] = __('Nie możesz wpisywać rezultatów danego celu jeżeli nie zostałą przekroczona data zakończenia.');
 		}
 	  if(count($_ERRORS) == 0) {
-	    $db = new PDO('sqlite:'.DATABASE_FILE);
-        $db->exec('UPDATE targets SET name=\''.$_POST['name'].'\', end_date=\''.$date.'\', result = \''.$_POST['result'].'\' WHERE id=\''.$_GET['id'].'\'');
-        //echo 'UPDATE targets SET name=\''.$_POST['name'].'\', date=\''.$date.'\', result = \''.$_POST['result'].'\' WHERE id=\''.$_GET['id'].'\'';
+	    
+        DB::instance()->exec('UPDATE targets SET name="'.$_POST['name'].'", end_date="'.$date.'", result = "'.$_POST['result'].'" WHERE id="'.$_GET['id'].'"');
+        $_POST = array();
+	  }
+	 break;
+	 case 'add_task':
+	  if('' === $_POST['name'])
+	  {
+		  $_ERRORS['name'] = __('Musisz podać zakres zadania.');
+	  }
+	  if('' === $_POST['time'])
+	  {
+		  $_ERRORS['time'] = __('Musisz podać ilość czasu potrzebnego na zadanie.');
+	  } else if(!is_numeric($_POST['time']))
+	  {
+	      $_ERRORS['time'] = __('Czas musi być liczbą naturalną określającą ilość minut potrzebnych na zadanie.');
+	  }
+
+	  if(count($_ERRORS) == 0) {
+	    
+        DB::instance()->exec('INSERT INTO tasks VALUES (NULL, "'.$_GET['target'].'", "'.$_POST['name'].'", "'.$_POST['time'].'", NULL)');
+        $_POST = array();
+	  }
+	 break;
+	 case 'remove_task':
+	  
+      DB::instance()->exec('DELETE FROM tasks WHERE id = "'.$_GET['id'].'"');
+	 break;
+	 case 'correct_task':
+	
+	  if(!isset($_POST['finished']) || '1' != $_POST['finished'])
+	  {
+		 $_POST['finished'] = '0';
+	  }
+	  if('' === $_POST['name'])
+	  {
+		  $_ERRORS['name'] = __('Musisz podać zakres zadania.');
+	  }
+	  if('' === $_POST['time'])
+	  {
+		  $_ERRORS['time'] = __('Musisz podać ilość czasu potrzebnego na zadanie.');
+	  } else if(!is_numeric($_POST['time']))
+	  {
+	      $_ERRORS['time'] = __('Czas musi być liczbą naturalną określającą ilość minut potrzebnych na zadanie.');
+	  }
+
+	  if(count($_ERRORS) == 0) {
+	    
+        DB::instance()->exec('UPDATE tasks SET name="'.$_POST['name'].'", time="'.$_POST['time'].'", finished="'.$_POST['finished'].'" WHERE id="'.$_GET['id'].'"');
         $_POST = array();
 	  }
 	 break;
 }
 
-include('template.php');
+
+include 'templates/index.php';
+
+} catch(Exception $e) {
+	error($e);
+}
