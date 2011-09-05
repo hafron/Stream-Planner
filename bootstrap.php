@@ -74,6 +74,11 @@ try {
 	  finish INTEGER,
 	  action TEXT
 	)');
+	DB::instance()->exec('
+	CREATE TABLE modification_dates(
+	  id INTEGER PRIMARY KEY,
+	  date INTEGER
+	)');
 	DB::instance()->commit();
 } catch(Exception $e) {
 	DB::instance()->rollBack();

@@ -130,6 +130,57 @@ switch($_GET['action']) {
 		}
 	  }
 	break;
+	case 'add_modification_date':
+	if('' === $_POST['date'])
+	  {
+		  $_ERRORS['date'] = __('Musisz podać datę dla planu zmiennego.');
+	  } else
+	  {
+		  $date = formated_to_unix($_POST['date']);
+		  if(!$date)
+		  {
+			 $_ERRORS['date'] = __('Podaj datę w formacie '.DATE_FORMAT.'.');
+		  }
+	  }
+	  if(count($_ERRORS) == 0) {
+	    
+        DB::instance()->exec('INSERT INTO modification_dates VALUES (NULL, "'.$_POST['date'].'")');
+        $_POST = array();
+	  }
+	break;
+	case 'remove_modification_date':
+	  try {
+	    DB::instance()->beginTransaction();
+        DB::instance()->exec('DELETE FROM modification_dates WHERE id="'.$_GET['id'].'"');
+        DB::instance()->exec('DELETE FROM schedule_modifications WHERE date="'.$_GET['id'].'"');
+        DB::instance()->commit();
+	  } catch(Exception $e) {
+		DB::instance()->rollBack();
+		error($e);
+	  }
+		
+	break;
+	case 'change_modification_date':
+	if('' === $_POST['date'])
+	  {
+		  $_ERRORS['date'] = __('Musisz podać datę dla planu zmiennego.');
+	  } else
+	  {
+		  $date = formated_to_unix($_POST['date']);
+		  if(!$date)
+		  {
+			 $_ERRORS['date'] = __('Podaj datę w formacie '.DATE_FORMAT.'.');
+		  }
+	  }
+	  if(count($_ERRORS) == 0) {
+	    
+        DB::instance()->exec('UPDATE modification_dates SET date="'.$_POST['date'].'" WHERE id="'.$_GET['id'].'"');
+        $_POST = array();
+	  }
+	break;
+	case 'add_schedule_modification':
+	  //echo 'Not implemented yet.';
+	break;
 }
 
 
